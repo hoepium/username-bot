@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const axios = require('axios'); // Use a single import
 const { getUsernamePrice, checkUsernameValidity } = require('../utils/pricing');
 const { roastUsername } = require('../utils/roast');
 
@@ -11,7 +12,7 @@ app.post('/', async (req, res) => {
   if (!body.message || !body.message.text) {
     return res.sendStatus(200);
   }
-  
+
   const text = body.message.text.trim();
   const chatId = body.message.chat.id;
 
@@ -28,7 +29,7 @@ app.post('/', async (req, res) => {
         reply = validity;
       } else {
         const { price, reason } = getUsernamePrice(username);
-        reply = '@${username} — Estimated value: $${price} USD\n${reason}';
+        reply = @${username} — Estimated value: $${price} USD\n${reason};
       }
     }
   } else if (text.startsWith('/roast')) {
@@ -43,7 +44,7 @@ app.post('/', async (req, res) => {
   }
 
   // Telegram sendMessage API
-  await require('axios').post(
+  await axios.post(
     https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage,
     { chat_id: chatId, text: reply }
   );
