@@ -28,7 +28,7 @@ app.post('/', async (req, res) => {
         reply = validity;
       } else {
         const { price, reason } = getUsernamePrice(username);
-        reply = @${username} — Estimated value: $${price} USD\n${reason};
+        reply = '@${username} — Estimated value: $${price} USD\n${reason}';
       }
     }
   } else if (text.startsWith('/roast')) {
