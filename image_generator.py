@@ -4,7 +4,8 @@ import random
 import os
 
 
-def generate_username_image(username: str, price: str) -> BytesIO:
+def generate_username_image(username: str, price: str, tone: str) -> BytesIO:
+
     # Image dimensions (wide format)
     width, height = 1280, 768
     
