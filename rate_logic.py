@@ -1,58 +1,72 @@
 import re
 from username_utils import (
     is_real_word,
-    is_brandable,
-    is_negative_aesthetic,
-    is_pure_4_letters,
-    is_fragment_4l_valid,
+    is_4_letter,
+    is_negative_tone,
+    has_fragment_sale,
+    is_brandable
 )
-from image_generator import generate_username_image
-
+from image_generator import generate_image
 
 def handle_rate_command(username: str):
-    username = username.lower().strip('@')
+    username_clean = username.strip().lower().replace("@", "")
+    errors = []
 
-    if not re.fullmatch(r'[a-z0-9_]{4,32}', username):
-        return f"❌ Invalid username: @{username}.\nUsernames must be 4–32 characters with only letters, numbers, or underscores."
+    # Basic username rules
+    if len(username_clean) < 4:
+        errors.append("❌ Username too short. Telegram requires 4+ characters.")
+    if not re.match("^[a-z0-9_]+$", username_clean):
+        errors.append("❌ Username must only contain letters, numbers, or underscores.")
+    if "__" in username_clean or username_clean.startswith("_") or username_clean.endswith("_"):
+        errors.append("❌ Avoid starting/ending with or repeating underscores.")
 
-    # 4-character special rule
-    if len(username) == 4:
-        if not is_pure_4_letters(username) or not is_fragment_4l_valid(username):
-            return f"❌ '{username}' is 4 characters, but it's either not all letters or not sold on Fragment.\nOnly pure-letter 4L usernames from Fragment are allowed."
+    # Fragment rule: only all-letter 4-character usernames exist
+    if len(username_clean) == 4 and not username_clean.isalpha():
+        errors.append("❌ 4-character usernames must be all letters (no numbers or symbols).")
+    
+    if errors:
+        return "\n".join(errors), None
 
-        ton_price = 5050
-        usd_price = ton_price * 3.3
-        description = "4-letter pure Fragment username. Minimum floor enforced by market."
-        pros = ["Pure 4L", "Fragment approved", "Premium tier"]
-        cons = ["None – meets Fragment 4L rules"]
+    # Now determine price logic
+    info = []
+    price = 0
+    category = "other"
 
-    elif is_real_word(username):
-        if is_negative_aesthetic(username):
-            usd_price = 80 + len(username) * 5
-            description = "Real word with negative or introspective aesthetic. Niche branding potential."
-            pros = ["Real English word", "Aesthetic tone"]
-            cons = ["Limited commercial use"]
+    # Check for 4-letter (strict Fragment pricing)
+    if is_4_letter(username_clean):
+        category = "4-letter"
+        info.append("🔐 4-letter exclusive Telegram username.")
+        info.append("🏷️ Priced using Fragment's floor: 5050 TON ($16,616).")
+        price = 16616
+
+    # Real dictionary word logic
+    elif is_real_word(username_clean):
+        category = "real_word"
+        if is_negative_tone(username_clean):
+            info.append("🌀 Aesthetic, negative-tone real word.")
+            price = 120  # Midpoint of 80–150
         else:
-            usd_price = 400 + len(username) * 10
-            description = "Generic real English word. Usable for branding or resale."
-            pros = ["Real dictionary word", "Recognizable"]
-            cons = ["Not culturally premium" if usd_price < 800 else ""]
+            info.append("📘 Recognized real word.")
+            price = 600  # Mid of 400–800 range
+            if has_fragment_sale(username_clean):
+                info.append("💎 This word has past Fragment sale history.")
+                price = 850  # Raise to premium
+            elif username_clean in {"playboy", "fame", "divine", "envy", "hype"}:
+                info.append("🔥 High cultural relevance detected.")
+                price = 1000
 
-    elif is_brandable(username):
-        usd_price = 50 + len(username) * 5
-        description = "Clean, coined brand-style username. Could work for projects or alt branding."
-        pros = ["Clean + pronounceable", "Brandable"]
-        cons = ["Not a real word", "No Fragment sale history"]
+    # Brandable, clean coined usernames
+    elif is_brandable(username_clean):
+        category = "brandable"
+        info.append("🧠 Clean, brandable name (not real word).")
+        price = 70  # Mid of $50–90 range
 
+    # Mid-quality coined or odd usernames
     else:
-        usd_price = 5 + len(username) * 2
-        description = "Basic or weak brand potential. Not a real word. May not resell well."
-        pros = ["Usable"]
-        cons = ["Low demand", "Not brandable", "Not a real word"]
+        info.append("🪐 Coined or niche name. No strong brand/culture signal.")
+        price = 25  # Conservative floor
+        category = "coined"
 
-    # Format price with commas
-    price = f"${int(usd_price):,}"
-
-    # Generate and return image
-    image_bytes = generate_username_image(username, price, description)
-    return image_bytes
+    info.append(f"💰 Estimated Market Value: ${price:,}")
+    image = generate_image(username_clean, price, "\n".join(info), category)
+    return "\n".join(info), image
