@@ -8,9 +8,21 @@ def handle_rate_command(update, context):
         update.message.reply_text("Please provide a username. Usage: `.rate @username`")
         return
 
-    username = context.args[0].lstrip("@").lower()
-    category = classify_username(username)
-    price, comments = estimate_username_value(username, category)
+    raw_username = context.args[0]
+    username = raw_username.lstrip("@").lower()
+
+    # Step 1: Classify username
+    category, details = classify_username(username)
+
+    # Step 2: Estimate price and generate pros/cons
+    price, comments = estimate_username_value(username, category, details)
+
+    # Step 3: Generate image with gradient + price
     image_bytes = generate_pricing_image(username, price, comments)
 
-    update.message.reply_photo(photo=io.BytesIO(image_bytes), caption=f"Evaluation for @{username}", filename=f"{username}.png")
+    # Step 4: Send the image back
+    update.message.reply_photo(
+        photo=io.BytesIO(image_bytes),
+        caption=f"Evaluation for @{username}",
+        filename=f"{username}.png"
+    )
