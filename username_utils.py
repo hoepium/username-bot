@@ -1,84 +1,63 @@
 # username_utils.py
 
+# username_utils.py
+
 import re
-import random
-import json
+import enchant
 
-# Load dictionary words once
-with open("english_words.json", "r") as f:
-    ENGLISH_WORDS = set(json.load(f))
+dictionary = enchant.Dict("en_US")
 
-# Helper: check if username is a real English word
 def is_real_word(username: str) -> bool:
-    return username.lower() in ENGLISH_WORDS
+    """Checks if the username is a valid English word."""
+    return dictionary.check(username.lower())
 
-# Helper: check if it's a 4-letter username (including numbers)
-def is_four_letter(username: str) -> bool:
-    return len(username) == 4 and re.fullmatch(r"[a-zA-Z0-9]{4}", username) is not None
+def is_four_char(username: str) -> bool:
+    """Returns True if username is exactly 4 characters."""
+    return len(username) == 4
 
-# Aesthetic, nihilistic, negative-tone words (user-defined logic)
-NEGATIVE_AESTHETIC_WORDS = [
-    "hopeless", "scopeless", "worthless", "heartless", "soulless", "faceless", "nameless", "pointless", "useless"
-]
+def is_mixed_or_numeric(username: str) -> bool:
+    """Returns True if username has numbers or mix of letters and numbers."""
+    return bool(re.search(r'\d', username))
 
-# Detect if username fits the "negative aesthetic" vibe
-def is_negative_aesthetic(username: str) -> bool:
-    return username.lower() in NEGATIVE_AESTHETIC_WORDS or username.lower().endswith("less")
+def is_aesthetic_negative_word(username: str) -> bool:
+    """Detects aesthetic, nihilistic or negative-tone words like 'hopeless'."""
+    negative_suffixes = ['less', 'void', 'fail', 'doom', 'lost']
+    return (
+        is_real_word(username)
+        and any(username.lower().endswith(suffix) for suffix in negative_suffixes)
+        and not has_commercial_use(username)
+    )
 
-# Estimate price based on your logic
-def estimate_price(username: str) -> tuple:
+def has_commercial_use(username: str) -> bool:
+    """Rough logic to detect if real word is commonly used in business/branding."""
+    commercial_keywords = ['shop', 'pay', 'market', 'cloud', 'app', 'tech', 'coin']
+    return any(word in username.lower() for word in commercial_keywords)
+
+def categorize_username(username: str) -> str:
+    """
+    Categorizes username into:
+    - premium
+    - real_word
+    - aesthetic_negative
+    - brandable
+    - four_char
+    - mixed_numeric
+    - low_value
+    """
     uname = username.lower()
 
-    if is_four_letter(uname):
-        # Fragment 4L floor
-        return (16616, "4-character username (Fragment floor: 5050 TON)")
-
-    if is_real_word(uname):
-        if is_negative_aesthetic(uname):
-            return (80 + random.randint(0, 70), "Real word (aesthetic negative tone)")
-        elif uname in {"fame", "playboy", "exhaust"}:
-            return (800 + random.randint(0, 400), "Culturally strong dictionary word")
-        else:
-            return (400 + random.randint(0, 400), "Real English dictionary word")
-
-    # Brandable but not real word
-    if uname.endswith("ive") or uname.endswith("ly") or uname.endswith("on") or uname.endswith("in"):
-        return (50 + random.randint(0, 40), "Brandable coined username")
-
-    # Short coined or weird usernames
-    if len(uname) <= 5:
-        return (20 + random.randint(0, 20), "Short coined name (not real word)")
-
-    # Default fallback
-    return (10 + random.randint(0, 15), "Low-value or random username")
-
-# Format price nicely
-def format_price(price: int) -> str:
-    return f"${price:,}"
-
-# Return a clean pros/cons summary
-def get_pros_cons(username: str, price: int) -> tuple:
-    uname = username.lower()
-    pros = []
-    cons = []
-
-    if is_four_letter(uname):
-        pros.append("Rare 4-character username")
-        pros.append("Meets Fragment floor criteria (high demand)")
+    if is_four_char(uname):
+        return 'four_char'
     elif is_real_word(uname):
-        pros.append("Real English dictionary word")
-        if is_negative_aesthetic(uname):
-            pros.append("Aesthetic, niche branding appeal")
+        if has_commercial_use(uname):
+            return 'premium'
+        elif is_aesthetic_negative_word(uname):
+            return 'aesthetic_negative'
         else:
-            pros.append("Strong commercial potential")
+            return 'real_word'
+    elif is_mixed_or_numeric(uname):
+        return 'mixed_numeric'
+    elif len(uname) >= 6 and uname.endswith(('ive', 'less', 'ly', 'ed', 'ous')):
+        return 'brandable'
     else:
-        pros.append("Brandable structure" if price > 50 else "Short, easy to remember")
-
-    if not is_real_word(uname):
-        cons.append("Not a real word")
-    if price < 30:
-        cons.append("Low resale value")
-    if len(uname) > 10:
-        cons.append("Too long for easy recall")
-
-    return pros, cons
+        return 'low_value'
