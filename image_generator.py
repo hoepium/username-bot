@@ -1,58 +1,58 @@
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import random
+import os
+
 
 def generate_username_image(username: str, price: str) -> BytesIO:
+    # Image dimensions (wide format)
     width, height = 1280, 768
-    background_color = (10, 10, 10)
-
+    
     # Create base image
-    img = Image.new("RGB", (width, height), background_color)
-    draw = ImageDraw.Draw(img)
+    image = Image.new("RGB", (width, height), color=(10, 10, 10))
+    draw = ImageDraw.Draw(image)
 
-    # Generate dreamy blurred gradient on right side
-    gradient = Image.new("RGB", (width, height), color=0)
-    grad_draw = ImageDraw.Draw(gradient)
+    # Define gradients based on username tone
+    def get_gradient_colors(name):
+        name = name.lower()
+        if any(word in name for word in ["hopeless", "scopeless", "lifeless"]):
+            return [(30, 30, 30), (80, 20, 60)]  # muted purple/grey
+        elif any(word in name for word in ["hit", "kill", "dark"]):
+            return [(40, 0, 0), (120, 0, 0)]  # dark reds
+        elif any(word in name for word in ["love", "dream", "soul"]):
+            return [(90, 40, 150), (255, 100, 180)]  # dreamy pinks/purples
+        else:
+            return [(0, 90, 150), (90, 0, 160)]  # default cool gradient
 
-    colors = random.choice([
-        [(255, 92, 92), (255, 171, 157), (255, 212, 165)],
-        [(155, 0, 255), (90, 0, 220), (50, 10, 100)],
-        [(0, 199, 255), (0, 133, 255), (90, 30, 255)],
-        [(255, 94, 247), (255, 196, 251), (255, 120, 221)],
-        [(255, 157, 0), (255, 105, 0), (255, 200, 112)],
-    ])
-    for i, color in enumerate(colors):
-        radius = 300 + i * 50
-        x = width - 300 + random.randint(-40, 40)
-        y = 200 + i * 100
-        grad_draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
+    # Apply gradient background
+    def apply_gradient(image, start_color, end_color):
+        base = Image.new('RGB', image.size, start_color)
+        top = Image.new('RGB', image.size, end_color)
+        mask = Image.linear_gradient('L').resize(image.size)
+        blended = Image.composite(top, base, mask)
+        image.paste(blended, (0, 0))
 
-    gradient = gradient.filter(ImageFilter.GaussianBlur(180))
-    img = Image.blend(img, gradient, alpha=0.7)
-    draw = ImageDraw.Draw(img)
+    gradient_start, gradient_end = get_gradient_colors(username)
+    apply_gradient(image, gradient_start, gradient_end)
 
-    # Load fonts
-    try:
-        username_font = ImageFont.truetype("arialbd.ttf", 110)
-        price_font = ImageFont.truetype("arialbd.ttf", 60)
-        desc_font = ImageFont.truetype("arial.ttf", 40)
-    except:
-        username_font = ImageFont.load_default()
-        price_font = ImageFont.load_default()
-        desc_font = ImageFont.load_default()
+    # Fonts
+    font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font_large = ImageFont.truetype(font_path_bold, 140)
+    font_small = ImageFont.truetype(font_path_bold, 48)
 
-    # Text content
+    # Text positions
     username_text = f"@{username.lower()}"
-    price_text = f"{price}"
-    desc_text = "estimated username value"
+    price_text = f"${price}"
+    desc_text = "clean ai-evaluated telegram handle"
 
-    # Draw username (left-aligned)
-    draw.text((80, 230), username_text, font=username_font, fill="white")
-    draw.text((80, 380), price_text, font=price_font, fill="white")
-    draw.text((80, 460), desc_text, font=desc_font, fill="#BBBBBB")
+    # Calculate center positions
+    text_x = 80
+    draw.text((text_x, 200), username_text, font=font_large, fill=(255, 255, 255))
+    draw.text((text_x, 380), price_text, font=font_large, fill=(255, 255, 255))
+    draw.text((text_x, 540), desc_text, font=font_small, fill=(255, 255, 255, 180))
 
-    # Output to memory
+    # Export to BytesIO
     output = BytesIO()
-    img.save(output, format="PNG")
+    image.save(output, format='PNG')
     output.seek(0)
     return output
