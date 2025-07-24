@@ -1,59 +1,49 @@
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 import random
 import os
 
+WIDTH, HEIGHT = 1280, 768
 
-def generate_username_image(username: str, price: str, tone: str) -> BytesIO:
+FONTS_DIR = "assets/fonts"
+GRADIENTS_DIR = "assets/gradients"
+FONT_BOLD = os.path.join(FONTS_DIR, "GeneralSans-Bold.otf")
+FONT_REGULAR = os.path.join(FONTS_DIR, "GeneralSans-Regular.otf")
 
-    # Image dimensions (wide format)
-    width, height = 1280, 768
-    
-    # Create base image
-    image = Image.new("RGB", (width, height), color=(10, 10, 10))
-    draw = ImageDraw.Draw(image)
+def pick_gradient(username: str):
+    # Match tone: red for aggressive, blue for aesthetic, etc.
+    if any(word in username for word in ["hit", "kill", "blast", "rage", "slay"]):
+        theme = "red"
+    elif any(word in username for word in ["hopeless", "scopeless", "void", "less"]):
+        theme = "blue"
+    elif any(word in username for word in ["grace", "flow", "fade", "calm"]):
+        theme = "purple"
+    else:
+        theme = "default"
 
-    # Define gradients based on username tone
-    def get_gradient_colors(name):
-        name = name.lower()
-        if any(word in name for word in ["hopeless", "scopeless", "lifeless"]):
-            return [(30, 30, 30), (80, 20, 60)]  # muted purple/grey
-        elif any(word in name for word in ["hit", "kill", "dark"]):
-            return [(40, 0, 0), (120, 0, 0)]  # dark reds
-        elif any(word in name for word in ["love", "dream", "soul"]):
-            return [(90, 40, 150), (255, 100, 180)]  # dreamy pinks/purples
-        else:
-            return [(0, 90, 150), (90, 0, 160)]  # default cool gradient
+    files = os.listdir(GRADIENTS_DIR)
+    candidates = [f for f in files if theme in f] or files
+    return os.path.join(GRADIENTS_DIR, random.choice(candidates))
 
-    # Apply gradient background
-    def apply_gradient(image, start_color, end_color):
-        base = Image.new('RGB', image.size, start_color)
-        top = Image.new('RGB', image.size, end_color)
-        mask = Image.linear_gradient('L').resize(image.size)
-        blended = Image.composite(top, base, mask)
-        image.paste(blended, (0, 0))
+def generate_image(username: str, est_price: int, category: str, notes: str = ""):
+    uname = username.lower().strip("@")
+    price_str = f"${est_price:,}"
 
-    gradient_start, gradient_end = get_gradient_colors(username)
-    apply_gradient(image, gradient_start, gradient_end)
+    gradient_path = pick_gradient(uname)
+    bg = Image.open(gradient_path).convert("RGBA").resize((WIDTH, HEIGHT))
 
-    # Fonts
-    font_path_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font_large = ImageFont.truetype(font_path_bold, 140)
-    font_small = ImageFont.truetype(font_path_bold, 48)
+    draw = ImageDraw.Draw(bg)
 
-    # Text positions
-    username_text = f"@{username.lower()}"
-    price_text = f"${price}"
-    desc_text = "clean ai-evaluated telegram handle"
+    font_username = ImageFont.truetype(FONT_BOLD, 120)
+    font_price = ImageFont.truetype(FONT_BOLD, 80)
+    font_info = ImageFont.truetype(FONT_REGULAR, 36)
 
-    # Calculate center positions
-    text_x = 80
-    draw.text((text_x, 200), username_text, font=font_large, fill=(255, 255, 255))
-    draw.text((text_x, 380), price_text, font=font_large, fill=(255, 255, 255))
-    draw.text((text_x, 540), desc_text, font=font_small, fill=(255, 255, 255, 180))
+    draw.text((60, 200), f"@{uname}", font=font_username, fill="white")
+    draw.text((60, 350), price_str, font=font_price, fill="white")
+    draw.text((60, 480), f"Category: {category}", font=font_info, fill="white")
+    draw.text((60, 540), notes, font=font_info, fill="white")
 
-    # Export to BytesIO
-    output = BytesIO()
-    image.save(output, format='PNG')
-    output.seek(0)
-    return output
+    output_path = f"output/{uname}_rate.png"
+    os.makedirs("output", exist_ok=True)
+    bg.save(output_path)
+
+    return output_path
