@@ -1,43 +1,55 @@
 import re
 
-# ✅ Basic Oxford dictionary subset (extendable)
-REAL_WORDS = {
-    "fame", "hope", "ghost", "fade", "drain", "hunt", "exhaust", "playboy",
-    "scope", "hopeless", "scopeless", "useless", "sadness", "panic", "dream",
-    "limit", "rage", "honor", "envy", "greed", "loss", "sorrow", "numb",
-    "alone", "pain", "lust", "fadeout", "fadein", "endless", "nameless",
-    "weightless", "helpless", "broken", "flawless", "drain", "empty"
+DICTIONARY_WORDS = {
+    # Real sample entries for demonstration
+    "hopeless", "low", "life", "france", "exhaust", "playboy", "fame", "scope", "fade", "hitlist",
+    "lust", "pride", "shadow", "grace", "chaos", "drain", "vanish", "void", "scopeless", "loveless",
+    "careless", "tireless", "flawless", "limitless", "restless", "useless", "aimless", "dreamless"
 }
 
-# ✅ Real negative aesthetic words
-NEGATIVE_AESTHETIC = {
-    "hopeless", "scopeless", "useless", "numb", "helpless", "nameless",
-    "weightless", "endless", "drain", "void", "alone", "pain", "sorrow", "sadness", "empty"
-}
-
-# ✅ Check if it's a real English word
-def is_real_word(username: str) -> bool:
-    return username.lower() in REAL_WORDS
-
-# ✅ Check if it's a brandable-style coined name
-def is_brandable(username: str) -> bool:
-    # Must be pronounceable and not purely random
-    return (
-        len(username) > 4
-        and not is_real_word(username)
-        and bool(re.fullmatch(r'[a-z]+', username))
-        and any(vowel in username for vowel in "aeiou")
-    )
-
-# ✅ Check if it's one of the negative aesthetic usernames
-def is_negative_aesthetic(username: str) -> bool:
-    return username.lower() in NEGATIVE_AESTHETIC
-
-# ✅ Check if it's exactly 4 characters and all letters
-def is_pure_4_letters(username: str) -> bool:
+def is_four_letter(username: str) -> bool:
     return len(username) == 4 and username.isalpha()
 
-# ✅ Check if it's a valid 4L that matches Fragment rules (only a–z 4Ls sold)
-def is_fragment_4l_valid(username: str) -> bool:
-    # Fragment sold only 4-letter lowercase a–z usernames, no digits
-    return username.isalpha() and len(username) == 4
+def is_numeric_or_mixed(username: str) -> bool:
+    return any(char.isdigit() for char in username)
+
+def is_real_dictionary_word(word: str) -> bool:
+    return word.lower() in DICTIONARY_WORDS
+
+def split_into_parts(username: str):
+    return re.split(r"[_\-.]", username.lower())
+
+def detect_negative_aesthetic(word: str):
+    return word.endswith("less") or word in {"hopeless", "scopeless", "loveless", "useless", "aimless", "dreamless"}
+
+def classify_username(username: str):
+    uname = username.lower().strip("@")
+    
+    # 4-letter usernames (strict Fragment rule)
+    if is_four_letter(uname):
+        return "4L", 5050
+
+    # Real dictionary word
+    if is_real_dictionary_word(uname):
+        if detect_negative_aesthetic(uname):
+            return "aesthetic_neg", 80
+        elif uname in {"playboy", "fame", "shadow", "chaos"}:
+            return "premium_dict", 1000
+        else:
+            return "real_dict", 500
+
+    # Multi-part (like f_r_an_ce)
+    parts = split_into_parts(uname)
+    if all(is_real_dictionary_word(p) for p in parts):
+        return "multi_real", 300
+
+    # Brandable coined
+    if not is_real_dictionary_word(uname) and not is_numeric_or_mixed(uname):
+        return "brandable", 30
+
+    # Numeric or mixed
+    if is_numeric_or_mixed(uname):
+        return "mixed_numeric", 20
+
+    # Default fallback
+    return "unknown", 10
