@@ -1,81 +1,58 @@
-# image_generator.py
-
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from io import BytesIO
 import random
-import os
 
-# Dimensions (1280x768)
-WIDTH, HEIGHT = 1280, 768
-PADDING = 60
+def generate_username_image(username: str, price: str) -> BytesIO:
+    width, height = 1280, 768
+    background_color = (10, 10, 10)
 
-# Fonts (update paths if needed)
-FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    # Create base image
+    img = Image.new("RGB", (width, height), background_color)
+    draw = ImageDraw.Draw(img)
 
-# Define gradient themes
-GRADIENTS = {
-    "default": ["#0f0c29", "#302b63", "#24243e"],
-    "danger": ["#2c001e", "#78002e", "#e7005c"],
-    "cool": ["#000428", "#004e92"],
-    "sunset": ["#ff512f", "#dd2476"],
-    "calm": ["#2193b0", "#6dd5ed"],
-    "mint": ["#76b852", "#8DC26F"],
-    "midnight": ["#232526", "#414345"],
-    "dream": ["#c33764", "#1d2671"]
-}
+    # Generate dreamy blurred gradient on right side
+    gradient = Image.new("RGB", (width, height), color=0)
+    grad_draw = ImageDraw.Draw(gradient)
 
-# Match tone to theme
-def choose_gradient(username: str) -> list:
-    uname = username.lower()
-    if any(x in uname for x in ["kill", "hit", "dead", "rage", "hunt"]):
-        return GRADIENTS["danger"]
-    if any(x in uname for x in ["calm", "soft", "float", "cloud"]):
-        return GRADIENTS["calm"]
-    if any(x in uname for x in ["dream", "hopeless", "less"]):
-        return GRADIENTS["dream"]
-    return random.choice(list(GRADIENTS.values()))
+    colors = random.choice([
+        [(255, 92, 92), (255, 171, 157), (255, 212, 165)],
+        [(155, 0, 255), (90, 0, 220), (50, 10, 100)],
+        [(0, 199, 255), (0, 133, 255), (90, 30, 255)],
+        [(255, 94, 247), (255, 196, 251), (255, 120, 221)],
+        [(255, 157, 0), (255, 105, 0), (255, 200, 112)],
+    ])
+    for i, color in enumerate(colors):
+        radius = 300 + i * 50
+        x = width - 300 + random.randint(-40, 40)
+        y = 200 + i * 100
+        grad_draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=color)
 
-# Create vertical gradient background
-def draw_gradient_background(colors: list) -> Image:
-    base = Image.new("RGB", (WIDTH, HEIGHT), colors[0])
-    top = Image.new("RGB", (WIDTH, HEIGHT), colors[-1])
-    mask = Image.linear_gradient("L").resize((WIDTH, HEIGHT))
-    blended = Image.composite(top, base, mask)
-    return blended
+    gradient = gradient.filter(ImageFilter.GaussianBlur(180))
+    img = Image.blend(img, gradient, alpha=0.7)
+    draw = ImageDraw.Draw(img)
 
-# Clean bullet point list formatting
-def format_bullets(lines: list, draw, font, start_y, color) -> int:
-    y = start_y
-    for line in lines:
-        draw.text((PADDING, y), f"• {line}", font=font, fill=color)
-        y += font.size + 10
-    return y
+    # Load fonts
+    try:
+        username_font = ImageFont.truetype("arialbd.ttf", 110)
+        price_font = ImageFont.truetype("arialbd.ttf", 60)
+        desc_font = ImageFont.truetype("arial.ttf", 40)
+    except:
+        username_font = ImageFont.load_default()
+        price_font = ImageFont.load_default()
+        desc_font = ImageFont.load_default()
 
-# Main image generation
-def generate_image(username: str, price_str: str, pros: list, cons: list, save_path: str = "output.png") -> str:
-    bg = draw_gradient_background(choose_gradient(username))
-    draw = ImageDraw.Draw(bg)
+    # Text content
+    username_text = f"@{username.lower()}"
+    price_text = f"{price}"
+    desc_text = "estimated username value"
 
-    # Fonts
-    font_title = ImageFont.truetype(FONT_BOLD, 96)
-    font_sub = ImageFont.truetype(FONT_REGULAR, 36)
-    font_text = ImageFont.truetype(FONT_REGULAR, 32)
+    # Draw username (left-aligned)
+    draw.text((80, 230), username_text, font=username_font, fill="white")
+    draw.text((80, 380), price_text, font=price_font, fill="white")
+    draw.text((80, 460), desc_text, font=desc_font, fill="#BBBBBB")
 
-    # Username + Price
-    draw.text((PADDING, PADDING), username.lower(), font=font_title, fill="white")
-    draw.text((PADDING, PADDING + 110), f"Estimated value: {price_str}", font=font_sub, fill="white")
-
-    # Pros
-    pros_y = PADDING + 190
-    draw.text((PADDING, pros_y), "Pros", font=font_sub, fill="#9effc4")
-    pros_y += 50
-    pros_y = format_bullets(pros, draw, font_text, pros_y, "#e6ffe4")
-
-    # Cons
-    cons_y = pros_y + 40
-    draw.text((PADDING, cons_y), "Cons", font=font_sub, fill="#ffbaba")
-    cons_y += 50
-    format_bullets(cons, draw, font_text, cons_y, "#ffeaea")
-
-    bg.save(save_path)
-    return save_path
+    # Output to memory
+    output = BytesIO()
+    img.save(output, format="PNG")
+    output.seek(0)
+    return output
