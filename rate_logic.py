@@ -1,7 +1,9 @@
 import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from rate_logic import handle_rate_command
+from username_utils import classify_username, estimate_username_value
+from image_generator import generate_pricing_image
+
 from roast_logic import handle_roast_command
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Make sure this is set in your environment
