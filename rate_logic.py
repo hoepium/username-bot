@@ -1,32 +1,16 @@
-import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from username_utils import classify_username, estimate_username_value
 from image_generator import generate_pricing_image
+from telegram import InputMediaPhoto
+import io
 
-from roast_logic import handle_roast_command
+def handle_rate_command(update, context):
+    if not context.args:
+        update.message.reply_text("Please provide a username. Usage: `.rate @username`")
+        return
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Make sure this is set in your environment
+    username = context.args[0].lstrip("@").lower()
+    category = classify_username(username)
+    price, comments = estimate_username_value(username, category)
+    image_bytes = generate_pricing_image(username, price, comments)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "**👋 Welcome to the Telegram Username Evaluator Bot!**\n\n"
-        "This bot gives you clean, AI-generated evaluations for Telegram usernames using smart branding logic, aesthetics, and sale history from platforms like Fragment.\n\n"
-        "**Available Commands:**\n"
-        "- `.rate @username` – Honest AI-powered username review with price estimation and image.\n"
-        "- `.roast @username` – Sarcastic, text-only roast (one-time unique burn per user).\n\n"
-        "> ⚠️ **Disclaimer:**\n"
-        "This bot is an AI-based tool. While it considers Fragment sales and branding logic, the estimated prices may not always reflect the real market value. Always do your own research before buying or selling usernames.",
-        parse_mode='Markdown'
-    )
-
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("rate", handle_rate_command))
-    app.add_handler(CommandHandler("roast", handle_roast_command))
-    print("Bot is running...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+    update.message.reply_photo(photo=io.BytesIO(image_bytes), caption=f"Evaluation for @{username}", filename=f"{username}.png")
